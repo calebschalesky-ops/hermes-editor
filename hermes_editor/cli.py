@@ -93,7 +93,8 @@ def main(argv: list[str] | None = None) -> int:
     canvas = render.canvas_for([c for c in inv["clips"] if c["id"] in {x.clip for x in edit.cuts}])
     pieces = render.plan_pieces(edit.cuts, inv)
     report["outputs"].append(render.render(pieces, inv, vdir / "video.mp4", vdir / "work", canvas, False,
-                                           edit.end_card, edit.loudness_lufs, edit.captions, words_of, log))
+                                           edit.end_card, edit.loudness_lufs, edit.captions, words_of, log,
+                                           names=a.names))
 
     log("4/4 cutting the shorts")
     prev_dir = a.out / f"v{done[-1]}" if prev else None
@@ -109,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
             continue
         cut = E.Cut(s.clip, s.in_s, s.out_s, "tight")
         report["outputs"].append(render.render(render.plan_pieces([cut], inv), inv, out, vdir / "work",
-                                               (1080, 1920), True, None, edit.loudness_lufs, True, words_of, log))
+                                               (1080, 1920), True, None, edit.loudness_lufs, True, words_of, log,
+                                               names=a.names))
 
     report["seconds"] = {"plan": round(t_plan, 1), "total": round(time.time() - t0, 1)}
     (vdir / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

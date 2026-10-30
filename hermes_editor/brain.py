@@ -45,6 +45,8 @@ Editing judgement:
 - Shorts (1-3, vertical 9:16, max 60s) are the strongest self-contained moments. A short opens on
   the claim, not the wind-up, and needs no setup from elsewhere in the video. An action peak makes
   a short too: its window, 3-15s, landing on the peak rather than the run-up.
+- Add an end card only when the brief or change asks for one (end card, logo, outro, sign-off);
+  otherwise end_card is null. Never invent a title or tagline.
 - Only use clip ids that appear in the inventory. Never invent footage.
 - If part of the brief cannot be done with this footage, say which part in notes; do not pretend.
 

@@ -38,7 +38,7 @@ Hermes returns:
 
 **What it will never do:** upload, post, or sign in to any account. You review every file before anything goes out.
 
-**Tested on:** five vertical phone takes of me talking to camera (720x1280, 46 seconds in total), with the brief "Keep it under 40 seconds and upbeat. Open on the intro where I say who I am, and end on the line about sitting down to record. End card that says 'Caleb Schalesky' with 'AI systems for small business'. Two shorts." Claude, through the local Claude Code CLI, wrote the edit decision list. It kept four takes in story order, ended the intro before a false start at 9.8 seconds, and dropped one take to fit the length. Out came a 33.3-second video at -14.0 LUFS (true peak -1.5 dBTP) with burned captions and an .srt, plus two 1080x1920 shorts (8.5 s and 5.4 s), in 2 minutes 54 seconds on a laptop with Whisper on the CPU. The change request "slow down the middle, drop the second clip" re-cut it to 25.1 seconds in 1 minute 39 seconds. The middle take had no pause longer than the tight cap, so "slow down" changed its pace setting but not its length. Stills and both edit decision lists are in [`docs/`](docs/).
+**Tested on:** five vertical phone takes of me talking to camera (720x1280, 46 seconds in total), with the brief "Keep it under 40 seconds and upbeat. Open on the intro where I say who I am, and end on the line about sitting down to record. End card that says 'Caleb Schalesky' with 'AI systems for small business'. Two shorts." Claude, through the local Claude Code CLI, wrote the edit decision list. It kept four takes in story order, ended the intro before a false start at 9.9 seconds, and dropped one take to fit the length. Out came a 33.3-second video at -14.0 LUFS (true peak -1.5 dBTP) with burned captions and an .srt, plus two 1080x1920 shorts (8.5 s and 5.4 s), in 2 minutes 54 seconds on a laptop with Whisper on the CPU. The change request "slow down the middle, drop the second clip" re-cut it to 25.1 seconds in 1 minute 39 seconds. The middle take had no pause longer than the tight cap, so "slow down" changed its pace setting but not its length. Stills and both edit decision lists are in [`docs/`](docs/).
 
 ---
 
@@ -67,7 +67,7 @@ Needs Python 3.11+, `ffmpeg`/`ffprobe` on the PATH, and `pip install -r requirem
 What to expect the first time:
 
 - **Whisper model download.** The first run downloads the `small.en` transcription model (`Systran/faster-whisper-small.en`, about 486 MB) into the Hugging Face cache (`~/.cache/huggingface`). Later runs reuse it.
-- **GPU or CPU.** Whisper runs on the GPU when CUDA works, and falls back to the CPU on its own when it does not (including a GPU whose CUDA libraries are missing). The CPU is slower but needs nothing extra; the test run above used it.
+- **GPU or CPU.** Whisper runs on the GPU when CUDA works, and falls back to the CPU on its own when it does not (including a GPU whose CUDA libraries are missing), printing a line when it does. The CPU is slower but needs nothing extra; the test run above used it.
 - **Who writes the edit.** `--brain auto` (the default) uses the Anthropic API if `ANTHROPIC_API_KEY` is set, otherwise the Claude Code CLI if `claude` is on the PATH, otherwise the offline rules parser described below.
 
 ```bash
@@ -86,6 +86,14 @@ Each run writes a new version folder (`hermes-out/v1`, `v2`, ...) with:
 
 Source clips are only ever read.
 
+### Use it from a browser
+
+```bash
+python -m hermes_editor.web
+```
+
+Then open http://127.0.0.1:8640. Add your clips, describe the edit in your own words, and press **Make my video**. The page shows each step as it runs, then plays the video and shorts and lists every edit decision with its reason. Type a change ("drop the second clip") and it re-cuts as a new version. The page only answers on this computer, and clips are copied into a local `hermes-jobs` folder.
+
 Other options: `--logo logo.png` (an image in the clips folder, put on the end card), `--shorts 0-3`, `--names "Proper Nouns"` to help the transcriber spell names, `--plan-only` to write the EDL without rendering, `--edl my-edit.json` to render a hand-edited EDL.
 
 ## The edit decision list
@@ -103,9 +111,20 @@ Whatever a model returns is validated against the real footage (every clip exist
 ## What happens to the footage
 
 1. **Look.** For each clip: silences (`silencedetect`, -32 dB, 0.35 s), a loudness curve (`ebur128`), a motion curve from every decoded frame, exposure and colour from three regions (whole frame, top strip, left strip; the median, so a framing change cannot fake an exposure change), and word timestamps from Whisper (`small.en`). Takes that repeat another clip are marked as retakes, and a take that restarts a phrase and trails off gets an out point before the restart.
-2. **Decide.** The brief and that inventory go to the brain, which returns the EDL.
+2. **Decide.** The brief and that inventory go to the brain, which returns the EDL. Each clip's motion and loudness peaks are part of the inventory, so a clip with no talking (a catch, a sprint, a lift) is cut around its action instead of kept whole, and "the biggest moment" means the biggest action peak when the brief is about action. Any part of a brief the offline rules can't act on is listed as ignored rather than silently dropped.
 3. **Render.** One ffmpeg filter graph and one encode per output. Pauses longer than the pace allows are shortened (tight 0.25 s, normal 0.5 s, relaxed 1.0 s). Exposure is matched by gamma, never an additive lift, 80% of the way to the clips' median and capped. Audio gets a high-pass, a presence EQ, a compressor and a limiter, then two-pass `loudnorm` to -14 LUFS (pass 1 measures the exact signal pass 2 receives). Captions are transcribed from the rendered video's own audio, so they cannot drift across joins. No caption straddles a join, and the burn-in uses an ASS file declared at the real frame size.
 4. **Shorts.** The strongest moments, cropped to 9:16 and captioned above the bottom area that the Reels, TikTok and Shorts buttons cover.
+
+## Known limits
+
+Measured, not guessed:
+
+- **Long footage is slow to analyse on a CPU.** A 23.7-minute recording took 9.7 minutes to analyse with Whisper on the CPU. Once analysed it is cached, so change requests are quick.
+- **The offline rules can't pick highlights from one long clip.** Asked for a 60-second highlight of that 23.7-minute recording, the rules took the first minute. The Claude brain chose 9 moments from across the whole talk.
+- **Action detection measures pixel change.** It can't tell a runner from the camera swinging, so a cut can run on into a camera move.
+- **Shorts are a centre crop.** On a wide scene the subject can fall outside the 9:16 frame.
+- **The model reads words and numbers, not pictures.** It knows when the motion peaks, not what is in the frame.
+- **Tested on:** a sprint clip for action, plus phone talking heads and narrated animation. It has not been tested on gym footage of a catch, lift or jump.
 
 ## Tests
 

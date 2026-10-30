@@ -14,6 +14,7 @@ import json
 import re
 import statistics
 import subprocess
+import sys
 from pathlib import Path
 
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"}
@@ -135,9 +136,17 @@ def whisper_model(name: str = "small.en"):
         from faster_whisper import WhisperModel
         try:
             _model = WhisperModel(name, device="cuda", compute_type="float16")
-        except Exception:
+        except Exception as err:
+            _cpu_notice(err)
             _model = WhisperModel(name, device="cpu", compute_type="int8")
     return _model
+
+
+def _cpu_notice(err) -> None:
+    """Say so when transcription drops to the CPU: on long footage it is the difference
+    between minutes and the better part of an hour."""
+    print(f"hermes: Whisper is running on the CPU, which is slower (GPU unavailable: {str(err)[:80]})",
+          file=sys.stderr, flush=True)
 
 
 def transcribe(path: Path, prompt: str = "") -> list[dict]:
@@ -149,6 +158,7 @@ def transcribe(path: Path, prompt: str = "") -> list[dict]:
         if "cuda" not in str(err).lower() and "cublas" not in str(err).lower():
             raise
         from faster_whisper import WhisperModel
+        _cpu_notice(err)
         _model = WhisperModel("small.en", device="cpu", compute_type="int8")
         return _transcribe(_model, path, prompt)
 

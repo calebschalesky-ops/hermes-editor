@@ -22,7 +22,9 @@ from pathlib import Path
 from . import edl as E
 
 FPS = 30
-ENC_V = ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", str(FPS)]
+# The bitrate cap keeps busy footage a sane size: uncapped CRF 18 made 287 MB from 50 s of 1080p animation.
+ENC_V = ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-maxrate", "12M", "-bufsize", "24M",
+         "-pix_fmt", "yuv420p", "-r", str(FPS)]
 ENC_A = ["-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2"]
 Q = ["-hide_banner", "-nostats", "-y"]
 
