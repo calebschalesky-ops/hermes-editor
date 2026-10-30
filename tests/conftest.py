@@ -21,6 +21,24 @@ def clip(cid, text, start=0.5, duration=None, score=1.0, silences=None, false_st
             "superseded_by": superseded_by}
 
 
+def curve(duration, base, bumps, hz=2):
+    """A synthetic [t, v] curve: flat at `base`, with each (t, v) bump set at its sample."""
+    pts = [[round(i / hz, 2), base] for i in range(int(duration * hz) + 1)]
+    for t, v in bumps:
+        pts[int(round(t * hz))][1] = v
+    return pts
+
+
+def action_clip(cid, duration=12.0, motion=(), loud=(), base_motion=1.0, base_loud=-30.0, text=""):
+    """A clip with no talking: a flat motion and loudness curve with peaks where the action is."""
+    c = clip(cid, text or "x", duration=duration)
+    if not text:
+        c.update(words=[], text="", speech=[0.0, duration], silences=[])
+    c.update(motion=curve(duration, base_motion, motion), loudness=curve(duration, base_loud, loud, hz=10),
+             score=0.5)
+    return c
+
+
 @pytest.fixture
 def inv():
     return {"clips": [

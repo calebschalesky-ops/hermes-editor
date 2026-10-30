@@ -30,13 +30,23 @@ Editing judgement:
 - Trim dead air at the head and tail of every clip; set in/out on word boundaries using the
   [time]word transcript, a little before the first word and a little after the last.
 - If a take restarts a phrase and trails off (false_start_at), end it before the restart.
+- Action. motion_peaks are [time, motion] (mean frame-to-frame change, 0-255; a peak well above
+  motion_median is real movement), loud_moments are [time, LUFS], action_score rates a clip's
+  biggest action moment. A clip with has_speech false (a catch, a lift, a jump, B-roll) is cut
+  around its action peaks, not on its whole length: in = peak - 1.5s, out = peak + 2s, and peaks
+  whose windows touch become one cut (action_window is that cut for the strongest peak).
+- When the brief is about action (a catch, a jump, a lift, a trick, a play, "the action") or most
+  clips have no speech, "biggest" or "best moment" means the biggest action peak (action_score,
+  then motion and a loud moment together), never whoever talks loudest or fastest.
 - Order clips so the story makes sense; the opening clip is the hook the brief asks for.
 - Respect target length: the sum of (out - in) plus the end card must fit. Internal pauses get
   shortened at render time by pace (tight 0.25s, normal 0.5s, relaxed 1.0s cap), so a cut can
   run a little over before pauses are trimmed.
 - Shorts (1-3, vertical 9:16, max 60s) are the strongest self-contained moments. A short opens on
-  the claim, not the wind-up, and needs no setup from elsewhere in the video.
+  the claim, not the wind-up, and needs no setup from elsewhere in the video. An action peak makes
+  a short too: its window, 3-15s, landing on the peak rather than the run-up.
 - Only use clip ids that appear in the inventory. Never invent footage.
+- If part of the brief cannot be done with this footage, say which part in notes; do not pretend.
 
 Return ONLY one JSON object, no prose, with this shape:
 {
@@ -150,6 +160,8 @@ def plan(brief: str, inv: dict, client=None, n_shorts: int = 2, log=print) -> E.
             e = _ask(client, plan_prompt(brief, inv, n_shorts), inv, log)
             e.brief = brief
             e.history = [f"brain: {client.name}"] + e.history
+            if e.notes:
+                e.history.append(f"notes: {e.notes}")
             return _tidy(e, inv)
         except Exception as err:  # never leave the user with nothing
             log(f"  {client.name} brain failed ({err}); falling back to rules")

@@ -40,8 +40,44 @@ def test_dropping_a_clip_drops_its_short(inv):
 
 
 def test_nonsense_change_is_an_error_not_a_silent_no_op(inv):
-    with pytest.raises(E.EDLError, match="could not understand"):
+    with pytest.raises(E.EDLError, match="could not understand") as err:
         rules.revise(base(inv), "make it pop more", inv)
+    assert '"make it pop more": not an instruction' in str(err.value) and "drop the second clip" in str(err.value)
+
+
+def test_part_of_a_change_it_cannot_do_is_recorded_not_dropped(inv):
+    new = rules.revise(base(inv), "drop the second clip, add some sparkle", inv)
+    assert "b.mp4" not in [c.clip for c in new.cuts]
+    assert new.history[-1] == 'ignored: "add some sparkle" (not an instruction the rules brain knows)'
+
+
+def test_slowing_down_clips_with_no_long_pauses_says_the_length_will_not_change(inv):
+    new = rules.revise(base(inv), "slow down the middle", inv)
+    assert [c.pace for c in new.cuts] == ["normal", "relaxed", "relaxed", "normal"]
+    h = new.history[-1]
+    assert "pace relaxed on the middle (2 clips, +0.0s)" in h
+    assert "pace set to relaxed on b.mp4; it has no pause longer than 0.5s, so its length won't change" in h
+
+
+def test_slowing_down_a_clip_with_a_long_pause_lengthens_it(inv):
+    b = inv["clips"][1]
+    b["silences"].append([2.0, 3.5])           # a 1.5s pause between words
+    new = rules.revise(base(inv), "slow down the middle", inv)
+    h = new.history[-1]
+    assert "(2 clips, +0.5s)" in h and "on b.mp4" not in h and "on c.mp4;" in h
+
+
+def test_cli_prints_one_line_and_makes_no_version_for_a_change_it_cannot_do(inv, tmp_path, monkeypatch, capsys):
+    from hermes_editor import analyze, cli
+    monkeypatch.setattr(analyze, "build_inventory", lambda *a, **k: inv)
+    (tmp_path / "clips").mkdir()
+    out = tmp_path / "out"
+    (out / "v1").mkdir(parents=True)
+    base(inv).save(out / "v1" / "edl.json")
+    code = cli.main([str(tmp_path / "clips"), "--out", str(out), "--brain", "rules", "--change", "make it pop more"])
+    err = capsys.readouterr().err.strip()
+    assert code == 2 and not (out / "v2").exists()
+    assert len(err.splitlines()) == 1 and err.startswith("hermes: could not understand") and "Traceback" not in err
 
 
 def test_change_through_fake_model(inv):

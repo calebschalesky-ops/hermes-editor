@@ -54,18 +54,22 @@ def main(argv: list[str] | None = None) -> int:
 
     done = versions(a.out)
     prev = None
-    if a.change:
-        if not done:
-            ap.error("--change needs an earlier version in --out")
-        prev = E.load(a.out / f"v{done[-1]}" / "edl.json", analyze.durations(inv))
-        log(f"2/4 change request on v{done[-1]}: {a.change}")
-        edit = brain.revise(prev, a.change, inv, client, log)
-    elif a.edl:
-        log(f"2/4 using {a.edl}")
-        edit = E.load(a.edl, analyze.durations(inv))
-    else:
-        log(f"2/4 brief -> edit decision list: {a.brief or '(defaults)'}")
-        edit = brain.plan(a.brief, inv, client, max(0, min(3, a.shorts)), log)
+    try:
+        if a.change:
+            if not done:
+                ap.error("--change needs an earlier version in --out")
+            prev = E.load(a.out / f"v{done[-1]}" / "edl.json", analyze.durations(inv))
+            log(f"2/4 change request on v{done[-1]}: {a.change}")
+            edit = brain.revise(prev, a.change, inv, client, log)
+        elif a.edl:
+            log(f"2/4 using {a.edl}")
+            edit = E.load(a.edl, analyze.durations(inv))
+        else:
+            log(f"2/4 brief -> edit decision list: {a.brief or '(defaults)'}")
+            edit = brain.plan(a.brief, inv, client, max(0, min(3, a.shorts)), log)
+    except E.EDLError as err:  # one plain line and no new version, never a traceback
+        print(f"hermes: {err}", file=sys.stderr, flush=True)
+        return 2
     if a.logo:
         if not (folder / a.logo).is_file():
             ap.error(f"--logo {a.logo} is not a file in {folder}")

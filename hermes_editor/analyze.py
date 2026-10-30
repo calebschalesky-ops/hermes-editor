@@ -2,8 +2,9 @@
 
 For every clip: duration and frame size, where the speech is (ffmpeg silencedetect),
 what is said and when (Whisper word timestamps), how loud and how much motion
-there is over time (every frame, via ebur128 and signalstats), exposure and colour
-of the frame, and whether a take restarts itself or repeats another clip.
+there is over time (every frame, via ebur128 and signalstats), where the action
+peaks are, exposure and colour of the frame, and whether a take restarts itself or
+repeats another clip.
 The result is an inventory: plain JSON the brain reads and the renderer trusts.
 """
 from __future__ import annotations
@@ -227,6 +228,77 @@ def moment_score(clip: dict) -> float:
     return round((statistics.mean(loud) + 60) / 10 + statistics.mean(mot) / 4 + rate / 2, 3)
 
 
+# ---- action: where the motion and the noise are -------------------------------------
+
+ACTION_PRE, ACTION_POST = 1.5, 2.0   # an action cut runs from 1.5 s before a peak to 2 s after
+SETTLE = 0.5                         # the first half second is the camera settling, not action
+
+
+def has_speech(clip: dict) -> bool:
+    """Talking is what the clip is for: at least 3 words, covering at least a quarter of it.
+    Off-camera chatter over a sprint ("go ahead, I'm recording") does not count."""
+    ws = clip["words"]
+    return len(ws) >= 3 and sum(w["e"] - w["s"] for w in ws) >= 0.25 * clip["duration"]
+
+
+def peaks(curve: list[list[float]], n: int = 3, gap: float = 1.5, after: float = 0.0,
+          floor: float | None = None) -> list[list[float]]:
+    """The n highest points of a [t, v] curve, at least `gap` seconds apart, biggest first."""
+    out = []
+    for t, v in sorted(curve, key=lambda p: -p[1]):
+        if t < after or (floor is not None and v <= floor):
+            continue
+        if all(abs(t - u) >= gap for u, _ in out):
+            out.append([t, v])
+            if len(out) == n:
+                break
+    return out
+
+
+def motion_peaks(clip: dict, n: int = 3) -> list[list[float]]:
+    """Top motion peaks above the clip's own median (a flat stretch is not a peak)."""
+    mot = [v for _, v in clip["motion"]]
+    return peaks(clip["motion"], n, after=SETTLE, floor=statistics.median(mot) if mot else None)
+
+
+def loud_moments(clip: dict, n: int = 3) -> list[list[float]]:
+    return [[t, round(v, 1)] for t, v in peaks(clip["loudness"], n, floor=-60.0)]
+
+
+def _action_at(clip: dict, t: float, m: float) -> float:
+    """Motion at a peak, plus how far the sound jumps above the clip's own level there
+    (an impact or a cheer), so a steady loud talker scores nothing for being loud."""
+    loud = [v for u, v in clip["loudness"] if v > -60]
+    near = [v for u, v in clip["loudness"] if abs(u - t) <= 1.0 and v > -60]
+    jump = max(near) - statistics.median(loud) if near else 0.0
+    return m / 4 + max(0.0, jump) / 5
+
+
+def action_score(clip: dict) -> float:
+    """How big the clip's biggest action moment is: the best of its top motion peaks."""
+    return round(max((_action_at(clip, t, m) for t, m in motion_peaks(clip)), default=0.0), 3)
+
+
+def action_span(clip: dict) -> tuple[float, float, list[float]] | None:
+    """In and out around the strongest action peak (1.5 s before, 2 s after), widened to
+    take in any other top peak at least half as big whose window touches it.
+    Returns (in, out, peak times)."""
+    ps = sorted(motion_peaks(clip), key=lambda p: -_action_at(clip, *p))
+    if not ps:
+        return None
+    t0 = ps[0][0]
+    a, b, used = t0 - ACTION_PRE, t0 + ACTION_POST, [t0]
+    for t, m in ps[1:]:
+        if m >= 0.5 * ps[0][1] and t - ACTION_PRE <= b + 1.0 and t + ACTION_POST >= a - 1.0:
+            a, b = min(a, t - ACTION_PRE), max(b, t + ACTION_POST)
+            used.append(t)
+    a, b = max(0.0, a), min(clip["duration"], b)
+    short = ACTION_PRE + ACTION_POST - (b - a)  # a peak near an edge borrows from the other side
+    if short > 0:
+        a, b = max(0.0, a - short), min(clip["duration"], b + short)
+    return round(a, 3), round(b, 3), sorted(used)
+
+
 def snap(t: float, words: list[dict], side: str) -> float:
     """Never cut mid-word: an in point inside a word moves to just before it,
     an out point inside a word moves to just after it."""
@@ -282,10 +354,18 @@ def brain_view(inv: dict) -> list[dict]:
     """The inventory trimmed to what an editor needs to decide, small enough for a prompt."""
     view = []
     for i, c in enumerate(inv["clips"], 1):
+        mot = [v for _, v in c["motion"]]
+        span = action_span(c)
         view.append({
             "n": i, "clip": c["id"], "duration": round(c["duration"], 2),
             "size": f'{c["width"]}x{c["height"]}',
-            "speech": [round(x, 2) for x in c["speech"]],
+            "has_speech": has_speech(c),
+            "speech": [round(float(x), 2) for x in c["speech"]],
+            "motion_peaks": motion_peaks(c),
+            "motion_median": round(statistics.median(mot), 2) if mot else None,
+            "loud_moments": loud_moments(c),
+            "action_score": action_score(c),
+            "action_window": list(span[:2]) if span else None,
             "transcript": " ".join(f'[{w["s"]:.1f}]{w["w"]}' for w in c["words"]),
             "long_pauses": [s for s in c["silences"] if c["speech"][0] < s[0] < c["speech"][1]],
             "false_start_at": c["false_start"],

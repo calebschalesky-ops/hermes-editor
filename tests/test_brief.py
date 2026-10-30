@@ -78,3 +78,18 @@ def test_auto_brain_without_key_or_cli_is_rules(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setattr(brain, "find_claude", lambda: None)
     assert brain.pick_client("auto") is None
+
+
+def test_brief_is_split_into_clauses_quotes_kept_whole():
+    assert rules.clauses('under 30 seconds, upbeat and open on clip 2; end card "Sam\'s Gym, Irvine"') == \
+        ["under 30 seconds", "upbeat", "open on clip 2", 'end card "Sam\'s Gym, Irvine"']
+    assert rules.clauses("open on the line about Saturdays and adults") == ["open on the line about Saturdays and adults"]
+
+
+def test_every_clause_it_did_not_act_on_is_in_the_history(inv):
+    e = rules.plan("make it pop, under 20 seconds, drop the clip about dragons, keep the best takes", inv)
+    assert e.target_seconds == 20
+    assert 'ignored: "make it pop" (not an instruction the rules brain knows)' in e.history
+    assert 'ignored: "drop the clip about dragons" (no clip matches "the clip about dragons")' in e.history
+    assert not any("best takes" in h for h in e.history)  # already what every edit does
+    assert not any(h.startswith("ignored") for h in rules.plan("under 20 seconds, upbeat", inv).history)
