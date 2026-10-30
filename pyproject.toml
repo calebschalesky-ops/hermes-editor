@@ -1,0 +1,10 @@
+[project]
+name = "hermes-editor"
+version = "0.1.0"
+description = "Upload raw footage, describe the edit in plain words, get back a finished video and captioned short clips."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+pythonpath = [".", "tests"]
+testpaths = ["tests"]
