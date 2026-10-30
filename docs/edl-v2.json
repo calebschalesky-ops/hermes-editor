@@ -1,0 +1,57 @@
+{
+  "brief": "Keep it under 40 seconds and upbeat. Open on the intro where I say who I am, and end on the line about sitting down to record. End card that says \"Caleb Schalesky\" with \"AI systems for small business\". Two shorts. Change: slow down the middle, drop the second clip.",
+  "target_seconds": 40.0,
+  "pace": "tight",
+  "opening": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+  "cuts": [
+    {
+      "clip": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+      "pace": "tight",
+      "reason": "Unchanged hook: name plus what I build. Ends just after 'systems' (9.1) and before the 9.88 false start where the line restarts and trails off.",
+      "in": 0.0,
+      "out": 9.75
+    },
+    {
+      "clip": "0AECE1C6-13EF-4BC0-9981-61EEE79A8CCC.MP4",
+      "pace": "relaxed",
+      "reason": "Now the middle of the cut, and slowed per the change: relaxed pace lets the internal beats breathe up to 1.0s instead of being clamped to 0.25s, so the phone-clips-in / clean-video-out mechanic lands. Out still a beat after 'video' (7.9).",
+      "in": 0.0,
+      "out": 8.5
+    },
+    {
+      "clip": "9C15C14D-1BF4-4D36-98A1-1ACB7FFDD848.MP4",
+      "pace": "tight",
+      "reason": "The closer the brief named: all I had to do was sit down and record. Highest moment score in the inventory, lands straight into the end card.",
+      "in": 0.0,
+      "out": 3.8
+    }
+  ],
+  "shorts": [
+    {
+      "clip": "0AECE1C6-13EF-4BC0-9981-61EEE79A8CCC.MP4",
+      "reason": "Opens cold on the claim and needs nothing from the rest of the cut: phone footage in, professional video out.",
+      "in": 0.0,
+      "out": 8.5
+    },
+    {
+      "clip": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+      "reason": "Self-contained identity short: name plus the one-line value prop, cut after 'plates' (4.9) so it ends on the benefit rather than the second sentence.",
+      "in": 0.0,
+      "out": 5.4
+    }
+  ],
+  "end_card": {
+    "title": "Caleb Schalesky",
+    "subtitle": "AI systems for small business",
+    "seconds": 3.0,
+    "logo": ""
+  },
+  "captions": true,
+  "loudness_lufs": -14.0,
+  "notes": "Change applied: dropped the second clip of the previous EDL (ED290DD7, 'I have many different systems... the most important one', 8.4s) and slowed the middle. With that clip gone, 0AECE1C6 is the middle beat, so it carries the relaxed pace while the hook and the closer stay tight for energy. Everything else is as before. One consequence worth flagging: ED290DD7 was the bridge that narrowed 'many systems' down to the video system, so 0AECE1C6's 'This system' now refers back to 'AI systems' in the intro rather than to a named one — it still reads, just less explicitly. Cuts total 22.05s plus a 3s end card = 25.05s, well under 40 even before pause trimming, so there is headroom if you want that bridge back. Shorts unchanged; both surviving clips are still in the cut. Clip 1 remains the only take of the intro, so its 9.88 false start is trimmed rather than replaced, and clip 5 stays out of the shorts since 'the best part is' depends on setup from earlier in the video.",
+  "history": [
+    "brain: cli",
+    "change (cli): slow down the middle, drop the second clip -> Change applied: dropped the second clip of the previous EDL (ED290DD7, 'I have many different systems... the most important one', 8.4s) and slowed the middle. With that clip gone, 0AECE1C6 is the middle beat, so it carries the relaxed pace while the hook and the closer stay tight for energy. Everything else is as before. One consequence worth flagging: ED290DD7 was the bridge that narrowed 'many systems' down to the video system, so 0AECE1C6's 'This system' now refers back to 'AI systems' in the intro rather than to a named one — it still reads, just less explicitly. Cuts total 22.05s plus a 3s end card = 25.05s, well under 40 even before pause trimming, so there is headroom if you want that bridge back. Shorts unchanged; both surviving clips are still in the cut. Clip 1 remains the only take of the intro, so its 9.88 false start is trimmed rather than replaced, and clip 5 stays out of the shorts since 'the best part is' depends on setup from earlier in the video."
+  ],
+  "version": 1
+}

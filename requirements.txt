@@ -1,0 +1,5 @@
+faster-whisper>=1.0
+numpy
+Pillow>=10.1
+# optional: only used when ANTHROPIC_API_KEY is set
+anthropic

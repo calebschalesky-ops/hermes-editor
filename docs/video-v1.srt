@@ -1,0 +1,62 @@
+1
+00:00:00,000 --> 00:00:02,600
+Hello, my name is Caleb
+Schalesky and I build AI
+
+2
+00:00:02,600 --> 00:00:05,200
+systems to take repetitive
+tasks off people's plates.
+
+3
+00:00:05,880 --> 00:00:08,740
+I built one that manages
+all of my different
+
+4
+00:00:08,740 --> 00:00:09,750
+AI systems.
+
+5
+00:00:10,440 --> 00:00:12,380
+I have many different
+systems, we can't go over
+
+6
+00:00:12,380 --> 00:00:14,840
+all of them right now, but
+the most important one is
+
+7
+00:00:14,840 --> 00:00:17,320
+the one that is capable of
+making videos like
+
+8
+00:00:17,320 --> 00:00:17,991
+this one.
+
+9
+00:00:18,340 --> 00:00:21,020
+This system took a few
+short videos, recorded
+
+10
+00:00:21,020 --> 00:00:23,720
+myself from my phone, and
+put it together into a
+
+11
+00:00:23,720 --> 00:00:26,340
+very professional and
+clean looking video.
+
+12
+00:00:26,340 --> 00:00:28,900
+And the best part is, all
+I needed to do was sit
+
+13
+00:00:28,900 --> 00:00:30,180
+down and record my video.
+

@@ -1,0 +1,63 @@
+{
+  "brief": "Keep it under 40 seconds and upbeat. Open on the intro where I say who I am, and end on the line about sitting down to record. End card that says \"Caleb Schalesky\" with \"AI systems for small business\". Two shorts.",
+  "target_seconds": 40.0,
+  "pace": "tight",
+  "opening": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+  "cuts": [
+    {
+      "clip": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+      "pace": "tight",
+      "reason": "The hook the brief asks for: name plus what I build. Ends just after 'systems' (9.1) and before the 9.88 false start where the line restarts and trails off.",
+      "in": 0.0,
+      "out": 9.75
+    },
+    {
+      "clip": "ED290DD7-5B0F-4949-8DDB-0F25635B288D.MP4",
+      "pace": "tight",
+      "reason": "Narrows many systems down to the one that matters and sets up that this video is the proof. Keeps the opening 'I' and lets the 0.33-0.74 pause tighten at render.",
+      "in": 0.0,
+      "out": 8.4
+    },
+    {
+      "clip": "0AECE1C6-13EF-4BC0-9981-61EEE79A8CCC.MP4",
+      "pace": "tight",
+      "reason": "Pays off the claim with the concrete mechanic: a few phone clips in, one clean video out. Out set a beat after 'video' (7.9).",
+      "in": 0.0,
+      "out": 8.5
+    },
+    {
+      "clip": "9C15C14D-1BF4-4D36-98A1-1ACB7FFDD848.MP4",
+      "pace": "tight",
+      "reason": "The closer the brief named: all I had to do was sit down and record. Highest moment score in the inventory, lands straight into the end card.",
+      "in": 0.0,
+      "out": 3.8
+    }
+  ],
+  "shorts": [
+    {
+      "clip": "0AECE1C6-13EF-4BC0-9981-61EEE79A8CCC.MP4",
+      "reason": "Opens cold on the claim and needs nothing from the rest of the cut: phone footage in, professional video out.",
+      "in": 0.0,
+      "out": 8.5
+    },
+    {
+      "clip": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+      "reason": "Self-contained identity short: name plus the one-line value prop, cut after 'plates' (4.9) so it ends on the benefit rather than the second sentence.",
+      "in": 0.0,
+      "out": 5.4
+    }
+  ],
+  "end_card": {
+    "title": "Caleb Schalesky",
+    "subtitle": "AI systems for small business",
+    "seconds": 3.0,
+    "logo": ""
+  },
+  "captions": true,
+  "loudness_lufs": -14.0,
+  "notes": "Cuts total 30.45s plus a 3s end card = 33.45s, comfortably under 40 and tighter still once tight pace caps internal pauses at 0.25s. Dropped clip 2 (resume agent, 11.58s) on purpose: it is a complete, clean take but it is a job-search tangent that does not fit the 'AI systems for small business' end card, and including it would push the cut past 40s. Clip 1 is also the only take of the intro, so its false start at 9.88 is trimmed rather than replaced. Kept clip 5 out of the shorts even though it scores highest, since 'the best part is' depends on setup from earlier in the video.",
+  "history": [
+    "brain: cli"
+  ],
+  "version": 1
+}
