@@ -98,34 +98,65 @@ def canvas_for(clips: list[dict]) -> tuple[int, int]:
     return (1080, 1920) if portrait else (1920, 1080)
 
 
+def same_shape(clip: dict, canvas: tuple[int, int]) -> bool:
+    """True when the clip has the canvas's aspect ratio (within 1%), so it scales with no bars."""
+    W, H = canvas
+    w, h = clip.get("width"), clip.get("height")
+    return not (w and h) or abs(w * H - h * W) <= 0.01 * w * H
+
+
+def fit_chain(i: int, canvas: tuple[int, int], fill: bool, same: bool) -> str:
+    """Scale piece i's (graded, denoised) video onto the canvas. Fill crops to the canvas;
+    otherwise a same-shape clip just scales, and a different-shape clip sits full-height (or
+    full-width) over a blurred, darkened copy of itself instead of black bars."""
+    W, H = canvas
+    if fill:
+        return f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},unsharp=5:5:0.7:5:5:0"
+    if same:
+        return (f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,"
+                "unsharp=5:5:0.7:5:5:0")
+    return (f"split[bg{i}][fg{i}];"
+            f"[bg{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+            f"boxblur=40:2,eq=brightness=-0.25[bb{i}];"
+            f"[fg{i}]scale={W}:{H}:force_original_aspect_ratio=decrease,unsharp=5:5:0.7:5:5:0[ff{i}];"
+            f"[bb{i}][ff{i}]overlay=(W-w)/2:(H-h)/2")
+
+
 def build_graph(pieces: list[Piece], by_id: dict, ref: dict, canvas: tuple[int, int], fill: bool,
                 end_png: str | None, end_s: float, video: bool = True,
                 loud: str = "", gain_db: float = 0.0) -> tuple[list[str], str]:
-    """Return (ffmpeg input args, filter_complex). Outputs are [vout] and [aout]."""
+    """Return (ffmpeg input args, filter_complex). Outputs are [vout] and [aout].
+    Pieces from clips with no audio track get a silent input of the same length."""
     W, H = canvas
     args, chains, labels = [], [], []
     for i, p in enumerate(pieces):
         args += ["-ss", f"{p.a:.3f}", "-t", f"{p.b - p.a:.3f}", "-i", by_id[p.clip]["path"]]
+    n_in = len(pieces)
+    for i, p in enumerate(pieces):
         d = p.b - p.a
-        fade = min(0.015, d / 4)
-        chains.append(f"[{i}:a]aresample=48000,aformat=channel_layouts=stereo,highpass=f=80,"
-                      f"equalizer=f=250:t=q:w=1:g=-1.5,equalizer=f=2800:t=q:w=1:g=2.5,"
-                      f"afade=t=in:d={fade:.3f},afade=t=out:st={d - fade:.3f}:d={fade:.3f},"
-                      f"atrim=0:{d:.3f},asetpts=PTS-STARTPTS[a{i}]")
+        if by_id[p.clip].get("has_audio", True):
+            fade = min(0.015, d / 4)
+            chains.append(f"[{i}:a]aresample=48000,aformat=channel_layouts=stereo,highpass=f=80,"
+                          f"equalizer=f=250:t=q:w=1:g=-1.5,equalizer=f=2800:t=q:w=1:g=2.5,"
+                          f"afade=t=in:d={fade:.3f},afade=t=out:st={d - fade:.3f}:d={fade:.3f},"
+                          f"atrim=0:{d:.3f},asetpts=PTS-STARTPTS[a{i}]")
+        else:
+            args += ["-f", "lavfi", "-t", f"{d:.3f}", "-i", "anullsrc=r=48000:cl=stereo"]
+            chains.append(f"[{n_in}:a]aformat=channel_layouts=stereo,atrim=0:{d:.3f},asetpts=PTS-STARTPTS[a{i}]")
+            n_in += 1
         if video:
             g = grade(by_id[p.clip], ref)
-            fit = (f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}" if fill else
-                   f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2")
-            chains.append(f"[{i}:v]{g + ',' if g else ''}hqdn3d=0.8:0.6:0:0,{fit},unsharp=5:5:0.7:5:5:0,"
+            fit = fit_chain(i, canvas, fill, same_shape(by_id[p.clip], canvas))
+            chains.append(f"[{i}:v]{g + ',' if g else ''}hqdn3d=0.8:0.6:0:0,{fit},"
                           f"setsar=1,fps={FPS},format=yuv420p,trim=0:{d:.3f},setpts=PTS-STARTPTS[v{i}]")
         labels.append(i)
     n = len(pieces)
     if end_png:
         args += ["-loop", "1", "-t", f"{end_s:.3f}", "-i", end_png,
                  "-f", "lavfi", "-t", f"{end_s:.3f}", "-i", "anullsrc=r=48000:cl=stereo"]
-        chains.append(f"[{n + 1}:a]aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS[a{n}]")
+        chains.append(f"[{n_in + 1}:a]aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS[a{n}]")
         if video:
-            chains.append(f"[{n}:v]scale={W}:{H},setsar=1,fps={FPS},format=yuv420p,"
+            chains.append(f"[{n_in}:v]scale={W}:{H},setsar=1,fps={FPS},format=yuv420p,"
                           f"fade=t=in:st=0:d=0.4,setpts=PTS-STARTPTS[v{n}]")
         labels.append(n)
     if video:
@@ -156,10 +187,51 @@ def parse_loudnorm(stderr: str) -> dict:
 
 # ---- captions ----------------------------------------------------------------------
 
+def _core(w: str) -> str:
+    return re.sub(r"^\W+|\W+$", "", w)
+
+
+def _ends_sentence(w: str) -> bool:
+    return w.rstrip("\"')]”’")[-1:] in ".?!"
+
+
+def fix_case(words: list[dict], names: str | list[str] = "") -> list[dict]:
+    """Whisper capitalises the first word of each of its segments, which often lands
+    mid-sentence ("the man Files the charge"). Lower-case a capitalised word unless it starts
+    a sentence, is "I"/"I'm"-style, is an acronym or mixed-case name ("AI", "McKay"), is in
+    `names` (the transcriber's --names), or is a word said more than once and capitalised
+    every time. A name said once and not in `names` is lower-cased: pass it in --names."""
+    if isinstance(names, str):
+        names = re.split(r"[,\s]+", names)
+    keep = {n.lower() for n in names if n}
+    seen: dict[str, list[bool]] = {}
+    for w in words:
+        c = _core(w["w"])
+        if c:
+            seen.setdefault(c.lower(), []).append(c[0].isupper())
+    out, prev = [], None
+    for w in words:
+        c = _core(w["w"])
+        lower = (prev is not None and not _ends_sentence(prev) and c[:1].isupper()
+                 and not (c == "I" or c.startswith(("I'", "I’")))
+                 and not (len(c) > 1 and (c.isupper() or not c[1:].islower()))
+                 and c.lower() not in keep
+                 and not (len(seen[c.lower()]) > 1 and all(seen[c.lower()])))
+        if lower:
+            i = w["w"].index(c[0])
+            w = {**w, "w": w["w"][:i] + c[0].lower() + w["w"][i + 1:]}
+        out.append(w)
+        prev = w["w"]
+    return out
+
+
 def make_cues(words: list[dict], joins: list[float], max_chars: int, max_lines: int = 2,
-              min_d: float = 1.2, max_d: float = 5.5) -> list[dict]:
+              min_d: float = 1.2, max_d: float = 5.5, names: str | list[str] = "") -> list[dict]:
     """Group words into cues: at most `max_lines` lines of `max_chars`, 1.2-5.5 s each,
-    and no cue straddling a join. A word belongs to the side of a join its midpoint is on."""
+    and no cue straddling a join. A word belongs to the side of a join its midpoint is on.
+    Mid-sentence capitals from the transcriber are fixed first (see fix_case)."""
+    words = fix_case(words, names)
+
     def seg(t):
         return sum(t >= j for j in joins)
     cues, cur = [], []
@@ -297,7 +369,8 @@ def duration(path: Path) -> float:
 
 
 def render(pieces: list[Piece], inv: dict, out: Path, work: Path, canvas: tuple[int, int], fill: bool,
-           end_card: E.EndCard | None, lufs: float, captions: bool, transcribe, log=print) -> dict:
+           end_card: E.EndCard | None, lufs: float, captions: bool, transcribe, log=print,
+           names: str = "") -> dict:
     """Render one timeline to `out` (+ `out`.srt). Returns a report of what was measured."""
     work.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in inv["clips"]}
@@ -314,15 +387,20 @@ def render(pieces: list[Piece], inv: dict, out: Path, work: Path, canvas: tuple[
         return parse_loudnorm(ff([*args, "-filter_complex", fc, "-map", "[aout]", "-f", "null", "-"]).stderr)
 
     log(f"  {out.name}: loudness pass 1 (measure)")
-    gain = max(-20.0, min(30.0, lufs - float(measure_chain(0.0)["input_i"])))
-    m1 = measure_chain(gain)  # measure exactly what pass 2's loudnorm will receive
+    i0 = float(measure_chain(0.0)["input_i"])
+    if math.isfinite(i0):
+        gain = max(-20.0, min(30.0, lufs - i0))
+        m1 = measure_chain(gain)  # measure exactly what pass 2's loudnorm will receive
+        loud = loudnorm_pass2(m1, lufs)
+    else:  # nothing but silence (every clip mute): no level to normalise
+        gain, m1, loud = 0.0, {"input_i": "-inf"}, ""
 
     log(f"  {out.name}: pass 2 (render)")
     clean = work / f"{out.stem}.clean.mp4"
-    args, fc = build_graph(pieces, by_id, ref, canvas, fill, png, end_s, loud=loudnorm_pass2(m1, lufs), gain_db=gain)
+    args, fc = build_graph(pieces, by_id, ref, canvas, fill, png, end_s, loud=loud, gain_db=gain)
     r2 = ff([*args, "-filter_complex", fc, "-map", "[vout]", "-map", "[aout]", *ENC_V, *ENC_A,
              "-movflags", "+faststart", str(clean)])
-    m2 = parse_loudnorm(r2.stderr)
+    m2 = parse_loudnorm(r2.stderr) if loud else {}
 
     joins, t = [], 0.0
     for p in pieces:
@@ -338,7 +416,7 @@ def render(pieces: list[Piece], inv: dict, out: Path, work: Path, canvas: tuple[
     if captions:
         log(f"  {out.name}: captions from the rendered audio")
         words = transcribe(clean)
-        cues = make_cues(words, joins, max_chars=26 if H > W else 39)
+        cues = make_cues(words, joins, max_chars=26 if H > W else 39, names=names)
         srt_path = out.with_suffix(".srt")
         srt_path.write_text(srt(cues), encoding="utf-8")
         ass_name = f"{out.stem}.ass"

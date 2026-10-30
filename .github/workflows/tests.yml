@@ -11,6 +11,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      # Offline only: no ffmpeg, no Whisper model, no Claude. The brain is a fake client.
-      - run: pip install pytest
+      # No Whisper model and no Claude: the brain is a fake client and the transcriber a stub.
+      # ffmpeg is real, so tests/test_render_ffmpeg.py renders and measures one actual file.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install pytest numpy Pillow
       - run: pytest -q
