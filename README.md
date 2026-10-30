@@ -2,6 +2,28 @@
 
 Most business owners already film their work: a class, a lesson, an event. Almost none of them have time to edit it. Hermes does the editing.
 
+<p align="center">
+  <img src="docs/v1-demo.webp" width="320" alt="The first 8.7 seconds of the finished test video, with burned-in captions">
+</p>
+
+<p align="center"><sub>The first 8.7 seconds of the finished video from the test run below, as delivered (captions burned in by Hermes; animated WebP, no sound).</sub></p>
+
+![A raw frame from a source take, the same moment in the finished video, and the end card](docs/v1-before-after.jpg)
+
+<sub>Left: a frame 1.5 s into the raw phone take. Middle: the same moment in the finished video, graded and captioned. Right: the end card the brief asked for.</sub>
+
+The edit itself is a JSON file you can read. One cut from the test run's [edit decision list](docs/edl-v1.json), with the reason Claude gave for it:
+
+```json
+{
+  "clip": "E479B3D6-AF9A-457A-958E-08B8BAC16FB6.MP4",
+  "pace": "tight",
+  "reason": "The hook the brief asks for: name plus what I build. Ends just after 'systems' (9.1) and before the 9.88 false start where the line restarts and trails off.",
+  "in": 0.0,
+  "out": 9.75
+}
+```
+
 You upload the raw clips and, if you want, describe the edit in your own words: "keep it under a minute, open on the biggest catch, upbeat pace, put our logo at the end." Hermes turns that description into editing decisions and cuts the video the way you asked. If you give no instructions, it uses sensible defaults. Want a change? Say it the same way ("slow down the middle, drop the second clip") and it re-cuts.
 
 Hermes returns:
@@ -20,9 +42,33 @@ Hermes returns:
 
 ---
 
+## Sample output
+
+Frames sampled from the test run's delivered files, in playback order.
+
+The finished video (v1, 33.3 s): four takes in story order, then the end card.
+
+![Frames from the finished v1 video](docs/v1-video-frames.jpg)
+
+The two 9:16 shorts (8.5 s and 5.4 s), captioned above the area the app buttons cover.
+
+![Frames from the two v1 shorts](docs/v1-shorts-frames.jpg)
+
+After the change request "slow down the middle, drop the second clip" (v2, 25.1 s).
+
+![Frames from the v2 video after the change request](docs/v2-video-frames.jpg)
+
+Captions as text: [`video-v1.srt`](docs/video-v1.srt), [`video-v2.srt`](docs/video-v2.srt).
+
 ## Run it
 
 Needs Python 3.11+, `ffmpeg`/`ffprobe` on the PATH, and `pip install -r requirements.txt`.
+
+What to expect the first time:
+
+- **Whisper model download.** The first run downloads the `small.en` transcription model (`Systran/faster-whisper-small.en`, about 486 MB) into the Hugging Face cache (`~/.cache/huggingface`). Later runs reuse it.
+- **GPU or CPU.** Whisper runs on the GPU when CUDA works, and falls back to the CPU on its own when it does not (including a GPU whose CUDA libraries are missing). The CPU is slower but needs nothing extra; the test run above used it.
+- **Who writes the edit.** `--brain auto` (the default) uses the Anthropic API if `ANTHROPIC_API_KEY` is set, otherwise the Claude Code CLI if `claude` is on the PATH, otherwise the offline rules parser described below.
 
 ```bash
 python -m hermes_editor path/to/clips --brief "keep it under a minute, open on the biggest moment, upbeat"
